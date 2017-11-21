@@ -103,7 +103,7 @@ export default class Poker extends Phaser.State {
 
         //  startGroup
         this.startGroup = this.add.group();
-        this.blindText = this.add.text(0, 0, 'Blind: $10', { font: 'bold 48px Arial', fill: '#fff', boundsAlignH: 'center', boundsAlignV: 'top' }, this.startGroup);
+        this.blindText = this.add.text(0, 0, 'Player Bank $' +this.playerBank, { font: 'bold 48px Arial', fill: '#fff', boundsAlignH: 'center', boundsAlignV: 'top' }, this.startGroup);
         this.blindText.setShadow(3, 3, 'rgba(0, 0, 0, 0.5)', 2);
         this.blindText.setTextBounds(0, 0, 960, 600);
 
@@ -116,7 +116,7 @@ export default class Poker extends Phaser.State {
         this.opponetText.setShadow(3, 3, 'rgba(0, 0, 0, 0.5)', 2);
         this.opponetText.setTextBounds(480, 50, 475, 10);
 
-        this.playerText = this.add.text(0, 0, 'Stack: $', { font: 'bold 24px Arial', fill: '#fff', boundsAlignH: 'right', boundsAlignV: 'top' }, this.playGroup);
+        this.playerText = this.add.text(0, 0, 'Your Stack: $', { font: 'bold 24px Arial', fill: '#fff', boundsAlignH: 'right', boundsAlignV: 'top' }, this.playGroup);
         this.playerText.setShadow(3, 3, 'rgba(0, 0, 0, 0.5)', 2);
         this.playerText.setTextBounds(480, 270, 475, 10);
 
@@ -154,9 +154,9 @@ export default class Poker extends Phaser.State {
         this.rDownButton = this.add.button(this.world.centerX, 350, 'buttons_array', this.clickDownRaise, this, Assets.Atlases.AtlasesButtonsArray.Frames.Down, Assets.Atlases.AtlasesButtonsArray.Frames.Down, null, null, this.playerRaiseGroup);
         this.rDownButton.anchor.x = 0.5;
 
-        this.raiseAmount = this.add.text(0, 0, '$'+this.bet, { font: 'bold 40px Arial', fill: '#fff', boundsAlignH: 'center', boundsAlignV: 'center' }, this.playerRaiseGroup);
+        this.raiseAmount = this.add.text(0, 0, '$'+this.bet, { font: 'bold 40px Arial', fill: '#fff', boundsAlignH: 'center', boundsAlignV: 'middle' }, this.playerRaiseGroup);
         this.raiseAmount.setShadow(3, 3, 'rgba(0, 0, 0, 0.5)', 2);
-        this.raiseAmount.setTextBounds(0, 0, 960, 600);
+        this.raiseAmount.setTextBounds(0,0,960,600);
 
         this.rButton = this.add.button(this.world.centerX, 480, 'buttons_array', this.clickBet, this, Assets.Atlases.AtlasesButtonsArray.Frames.BetOver, Assets.Atlases.AtlasesButtonsArray.Frames.BetOut, null, null, this.playerRaiseGroup);
         this.rButton.anchor.x = 0.5;
@@ -196,6 +196,8 @@ export default class Poker extends Phaser.State {
     //  PlayGroup
 
     private clickPlay(): void {
+      this.cardGroup.removeAll(true, true);
+
       this.startGroup.visible = false;
       this.resetDeck();
 
@@ -257,6 +259,7 @@ export default class Poker extends Phaser.State {
       this.raise = true;
       this.raisedAmount = this.bet;
       this.oldBet = this.raisedAmount;
+      this.betCount--;
       this.turn = OmahaHi.OPPONENT;
 
       this.stageBet();
@@ -271,7 +274,7 @@ export default class Poker extends Phaser.State {
     }
 
     private clickFoldBet(): void {
-      console.log('Clicked fold bet.');
+      this.updateStatusText("You Folded.")
       this.opponentWins();
 
     }
@@ -286,6 +289,7 @@ export default class Poker extends Phaser.State {
     }
 
     private clickCheckBet(): void {
+
       this.turn = OmahaHi.OPPONENT;
       this.stageBet();
     }
@@ -355,13 +359,14 @@ export default class Poker extends Phaser.State {
     }
   private playerBetStage(): void {
     this.updateStatusText('Your bet.');
+    this.raise = true;
     this.betGroup.visible = true;
-    if(this.raise) {
+    if(this.raise == true) {
       this.checkButton.visible = false;
     }
   }
   private opponentCheck() {
-    this.updateStatusText('Opponent checked.' + this.raiseAmount);
+    this.updateStatusText('Opponent checked.' + this.raisedAmount);
     this.turn = OmahaHi.PLAYER;
     this.stageBet();
   }
@@ -371,17 +376,23 @@ export default class Poker extends Phaser.State {
       this.addToPot(this.raisedAmount);
     }
 
-    this.updateStatusText('Opponent called at $' + this.raiseAmount);
+    this.updateStatusText('Opponent called at $' + this.raisedAmount);
     this.turn = OmahaHi.PLAYER;
     this.stageBet();
   }
 
   private opponentRaiseBet(amount) {
     this.bet = amount;
+
     this.raisedAmount = this.oldBet - this.bet;
+    if(this.raisedAmount <= 0){
+      this.oldBet = this.bet;
+      this.raisedAmount = this.bet;
+    }
+    this.raise = true;
     this.removeOpponentBank(this.bet);
     this.addToPot(this.bet);
-    this.updateStatusText('Opponent raised at $' + this.raiseAmount);
+    this.updateStatusText('Opponent raised at $' + this.raisedAmount);
     this.turn = OmahaHi.PLAYER;
     this.stageBet();
   }
@@ -395,7 +406,7 @@ export default class Poker extends Phaser.State {
 
     if(cardVals >= 40) {
       let amount = this.math.roundTo(this.opponentBank*(cardVals/500),0);
-      this.opponentRaiseBet(this.opponentBank*.10)
+      this.opponentRaiseBet(amount)
       return;
     }
     if(cardVals >= 20 && this.raise) {
@@ -407,9 +418,13 @@ export default class Poker extends Phaser.State {
 
   }
   private oppontPostFlopBet(): void {
-    this.updateStatusText('opponent did nothing...');
-    this.turn = OmahaHi.PLAYER;
-    this.stageBet();
+    let cards = this.opponentHand
+    let cardVals = 0;
+    for (let card of cards){
+      cardVals += card.getValue();
+    }
+    let amount = this.math.roundTo(this.opponentBank*(cardVals/500),0);
+    this.opponentRaiseBet(amount)
   }
   private opponentBetStage(): void {
 
@@ -475,9 +490,26 @@ export default class Poker extends Phaser.State {
       }
 
     }
+    private newRound(): void{
+      this.cardGroup.removeAll(true, true);
+      this.currentStage = STAGE.INITDEAL;
+      this.stageController();
 
+    }
     private stageRestart(): void {
       console.log('Restart Round');
+      if(this.playerBank <= 0) {
+        this.updateStatusText("YOU ARE BANKRUPT")
+        this.updateStatusText("CLICK ANYWHERE TO BEGIN WITH $1000")
+        this.input.onDown.addOnce(this.clickPlay, this);
+        this.addPlayerBank(1000);
+        return;
+      }
+      this.updateStatusText("Click for a new Round")
+      this.input.onDown.addOnce(this.clickPlay, this);
+
+
+
     }
     //  utilities
     private updateStatusText(status): void {
@@ -505,7 +537,6 @@ export default class Poker extends Phaser.State {
 
     private playerWins(): void {
       this.flipOpponentCards();
-      this.updateStatusText('You have won!');
       this.addPlayerBank(this.pot);
       this.removeFromPot(this.pot);
 
@@ -515,7 +546,6 @@ export default class Poker extends Phaser.State {
 
     private opponentWins(): void {
       this.flipOpponentCards();
-      this.updateStatusText('Opponent has won!');
       this.addOpponentBank(this.pot);
       this.removeFromPot(this.pot);
 
@@ -570,12 +600,12 @@ export default class Poker extends Phaser.State {
 
     private removeFromPot(amount): void {
         this.pot -= amount;
-        this.potText.text = 'Pot\n' + '$' + this.pot;
+        this.potText.text = 'Pot ' + '$' + this.pot;
     }
 
     private addToPot(amount): void {
       this.pot += amount;
-      this.potText.text = 'Pot\n' + '$' + this.pot;
+      this.potText.text = 'Pot ' + '$' + this.pot;
       //  Update GUI
     }
 
